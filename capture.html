@@ -1,1 +1,35 @@
-<button onclick="backToLines()">Back to lines</button>\n\n<script>\nfunction backToLines() {\n    const urlParams = new URLSearchParams(window.location.search);\n    const line = urlParams.get('line');\n    window.location.href = `index.html?line=${encodeURIComponent(line)}`;\n}\n</script>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiosk Camera Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <button onclick="scanQRCode()">Scan QR</button>
+    <button onclick="backToLines()">Back to lines</button>
+
+    <script>
+        function backToLines() {
+            const currentUrl = new URL(window.location.href);
+            const lineParam = currentUrl.searchParams.get("line");
+            if (lineParam) {
+                window.location.href = `index.html?line=${lineParam}`;
+            } else {
+                window.location.href = 'index.html';
+            }
+        }
+        function retakePhoto() {
+            // Functionality for retaking photo
+        }
+    </script>
+
+    <!-- QR SCAN section -->
+    <div>
+        <!-- Existing content -->
+    </div>
+
+</body>
+</html>
