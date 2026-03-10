@@ -50,12 +50,18 @@ button {
 
 const video = document.getElementById("video");
 
-navigator.mediaDevices.getUserMedia({ video: true })
-.then(stream => {
-    video.srcObject = stream;
+navigator.mediaDevices.getUserMedia({
+video:{
+facingMode:{ ideal:"environment" },
+width:{ ideal:1920 },
+height:{ ideal:1080 }
+}
 })
-.catch(err => {
-    alert("Camera access denied or not available");
+.then(stream=>{
+video.srcObject = stream;
+})
+.catch(err=>{
+alert("Camera access denied or not available");
 });
 
 function takePhoto() {
