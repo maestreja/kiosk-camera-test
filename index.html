@@ -3,52 +3,94 @@
 <head>
 <meta charset="UTF-8">
 <title>Kiosk Camera Test</title>
+
 <style>
-body {
-    font-family: Arial;
-    text-align: center;
-    background: #111;
-    color: white;
+
+body{
+font-family:Arial;
+text-align:center;
+background:#111;
+color:white;
 }
 
-video {
-    width: 80%;
-    max-width: 600px;
-    border: 3px solid white;
-    border-radius: 8px;
+video{
+width:80%;
+max-width:600px;
+border:3px solid white;
+border-radius:8px;
 }
 
-canvas {
-    display: none;
+img{
+width:80%;
+max-width:600px;
+border:3px solid #4CAF50;
+border-radius:8px;
+margin-top:20px;
 }
 
-button {
-    margin-top: 20px;
-    padding: 15px 25px;
-    font-size: 18px;
+#reader{
+width:80%;
+max-width:600px;
+margin:auto;
+margin-top:20px;
 }
+
+button{
+margin-top:20px;
+padding:15px 25px;
+font-size:18px;
+margin-right:10px;
+}
+
+#qrResult{
+margin-top:20px;
+font-size:20px;
+color:#4CAF50;
+}
+
 </style>
+
 </head>
 
 <body>
 
-<h2>Camera Test</h2>
+<h2>Kiosk Camera Test</h2>
 
 <video id="video" autoplay playsinline></video>
 
 <br>
 
-<button onclick="takePhoto()">Take back Photo</button>
+<button onclick="takePhoto()">Take Photo</button>
+
+<button onclick="retakePhoto()">Retake Photo</button>
+
+<button onclick="startQR()">Scan QR</button>
 
 <br><br>
 
+<img id="preview" style="display:none">
+
+<br>
+
 <a id="downloadLink" style="display:none">Download Photo</a>
 
-<canvas id="canvas"></canvas>
+<div id="qrResult"></div>
+
+<div id="reader"></div>
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
 
+let stream;
+
 const video = document.getElementById("video");
+
+startCamera();
+
+function startCamera(){
 
 navigator.mediaDevices.getUserMedia({
 video:{
@@ -57,31 +99,78 @@ width:{ ideal:1920 },
 height:{ ideal:1080 }
 }
 })
-.then(stream=>{
-video.srcObject = stream;
+.then(s=>{
+stream=s;
+video.srcObject=s;
 })
 .catch(err=>{
 alert("Camera access denied or not available");
 });
 
-function takePhoto() {
+}
 
-    const canvas = document.getElementById("canvas");
-    const context = canvas.getContext("2d");
+function takePhoto(){
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+const canvas=document.getElementById("canvas");
+const context=canvas.getContext("2d");
 
-    context.drawImage(video, 0, 0);
+canvas.width=video.videoWidth;
+canvas.height=video.videoHeight;
 
-    const image = canvas.toDataURL("image/png");
+context.drawImage(video,0,0);
 
-    const link = document.getElementById("downloadLink");
+const image=canvas.toDataURL("image/png");
 
-    link.href = image;
-    link.download = "kiosk-photo.png";
-    link.innerText = "Download Photo";
-    link.style.display = "block";
+const preview=document.getElementById("preview");
+preview.src=image;
+preview.style.display="block";
+
+const link=document.getElementById("downloadLink");
+
+link.href=image;
+link.download="kiosk-photo-"+Date.now()+".png";
+link.innerText="Download Photo";
+link.style.display="block";
+
+video.pause();
+
+}
+
+function retakePhoto(){
+
+const preview=document.getElementById("preview");
+preview.style.display="none";
+
+const link=document.getElementById("downloadLink");
+link.style.display="none";
+
+video.play();
+
+}
+
+function startQR(){
+
+const resultBox=document.getElementById("qrResult");
+
+const html5QrCode=new Html5Qrcode("reader");
+
+html5QrCode.start(
+{facingMode:"environment"},
+{
+fps:10,
+qrbox:250
+},
+(qrCodeMessage)=>{
+
+resultBox.innerText="QR Code: "+qrCodeMessage;
+
+html5QrCode.stop();
+
+},
+(errorMessage)=>{}
+
+);
+
 }
 
 </script>
