@@ -2,37 +2,37 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Kiosk Camera Test</title>
+<title>Kiosk Camera Upload Test</title>
+
 <style>
-body {
-    font-family: Arial;
-    text-align: center;
-    background: #111;
-    color: white;
+
+body{
+font-family: Arial;
+text-align:center;
+background:#111;
+color:white;
 }
 
-video {
-    width: 80%;
-    max-width: 600px;
-    border: 3px solid white;
-    border-radius: 8px;
+video{
+width:80%;
+max-width:600px;
+border:3px solid white;
+border-radius:8px;
 }
 
-canvas {
-    display: none;
+button{
+margin-top:20px;
+padding:15px 30px;
+font-size:18px;
 }
 
-button {
-    margin-top: 20px;
-    padding: 15px 25px;
-    font-size: 18px;
-}
 </style>
+
 </head>
 
 <body>
 
-<h2>Camera Test</h2>
+<h2>Kiosk Camera Test</h2>
 
 <video id="video" autoplay playsinline></video>
 
@@ -40,11 +40,7 @@ button {
 
 <button onclick="takePhoto()">Take Photo</button>
 
-<br><br>
-
-<a id="downloadLink" style="display:none">Download Photo</a>
-
-<canvas id="canvas"></canvas>
+<canvas id="canvas" style="display:none"></canvas>
 
 <script>
 
@@ -52,33 +48,68 @@ const video = document.getElementById("video");
 
 navigator.mediaDevices.getUserMedia({ video: true })
 .then(stream => {
-    video.srcObject = stream;
+
+video.srcObject = stream;
+
 })
 .catch(err => {
-    alert("Camera access denied or not available");
+
+alert("Camera access denied");
+
 });
 
-function takePhoto() {
+async function takePhoto(){
 
-    const canvas = document.getElementById("canvas");
-    const context = canvas.getContext("2d");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+canvas.width = video.videoWidth;
+canvas.height = video.videoHeight;
 
-    context.drawImage(video, 0, 0);
+ctx.drawImage(video,0,0);
 
-    const image = canvas.toDataURL("image/png");
+canvas.toBlob(async function(blob){
 
-    const link = document.getElementById("downloadLink");
+const fileName = "photo-" + Date.now() + ".png";
 
-    link.href = image;
-    link.download = "kiosk-photo.png";
-    link.innerText = "Download Photo";
-    link.style.display = "block";
+const uploadUrl =
+"https://stusae01prodintune.blob.core.windows.net/kiosk-camera-test/"
++ fileName +
+"?sp=rac&st=2026-03-10T12:23:08Z&se=2026-03-10T20:38:08Z&spr=https&sv=2024-11-04&sr=c&sig=IVIC9H%2FvoTrr5qS4Gstc%2BSRl1ldaZZ5KZ4npzKX4Wao%3D";
+
+try{
+
+const response = await fetch(uploadUrl,{
+method:"PUT",
+headers:{
+"x-ms-blob-type":"BlockBlob",
+"Content-Type":"image/png"
+},
+body:blob
+});
+
+if(response.ok){
+
+alert("Upload successful");
+
+}else{
+
+alert("Upload failed");
+
+}
+
+}catch(error){
+
+alert("Upload error");
+
+}
+
+},"image/png");
+
 }
 
 </script>
 
 </body>
+
 </html>
