@@ -1,35 +1,317 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kiosk Camera Test</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<title>Production Line Capture</title>
+
+<style>
+body{
+  font-family:Arial;
+  text-align:center;
+  background:#111;
+  color:white;
+}
+
+video{
+  width:80%;
+  max-width:600px;
+  border:3px solid white;
+  border-radius:8px;
+}
+
+img{
+  width:80%;
+  max-width:600px;
+  border:3px solid #4CAF50;
+  border-radius:8px;
+  margin-top:20px;
+}
+
+#reader{
+  width:80%;
+  max-width:600px;
+  margin:auto;
+  margin-top:20px;
+}
+
+button, select{
+  margin-top:20px;
+  padding:15px 25px;
+  font-size:18px;
+  margin-right:10px;
+}
+
+#qrResult{
+  margin-top:20px;
+  font-size:20px;
+  color:#4CAF50;
+}
+</style>
 </head>
+
 <body>
 
-    <button onclick="scanQRCode()">Scan QR</button>
-    <button onclick="backToLines()">Back to lines</button>
+<h2 id="lineTitle">Production Line</h2>
 
-    <script>
-        function backToLines() {
-            const currentUrl = new URL(window.location.href);
-            const lineParam = currentUrl.searchParams.get("line");
-            if (lineParam) {
-                window.location.href = `index.html?line=${lineParam}`;
-            } else {
-                window.location.href = 'index.html';
-            }
-        }
-        function retakePhoto() {
-            // Functionality for retaking photo
-        }
-    </script>
+<button onclick="goBack()">Back to Lines</button>
 
-    <!-- QR SCAN section -->
-    <div>
-        <!-- Existing content -->
-    </div>
+<br>
+
+<video id="video" autoplay playsinline></video>
+
+<br>
+
+<label for="cameraSelect">Camera:</label>
+<select id="cameraSelect" style="max-width:600px; width:80%;"></select>
+
+<br>
+
+<button onclick="switchCamera()">Switch Camera</button>
+<button onclick="takePhoto()">Take Photo</button>
+<button onclick="retakePhoto()">Retake Photo</button>
+<button onclick="startQR()">Scan QR</button>
+
+<br><br>
+
+<img id="preview" style="display:none">
+
+<br>
+
+<a id="downloadLink" style="display:none">Download Photo</a>
+
+<div id="qrResult"></div>
+<div id="reader"></div>
+
+<canvas id="canvas" style="display:none"></canvas>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<script>
+
+// ---------- GET PRODUCTION LINE FROM URL ----------
+
+const params = new URLSearchParams(window.location.search);
+const line = params.get("line") || "Unknown Line";
+
+document.getElementById("lineTitle").innerText =
+"Production Line: " + line;
+
+
+// ---------- BACK BUTTON ----------
+
+function goBack(){
+  window.location.href = "index.html";
+}
+
+
+// ---------- CAMERA VARIABLES ----------
+
+let stream;
+let currentDeviceId = null;
+let qrScanner = null;
+
+const video = document.getElementById("video");
+const cameraSelect = document.getElementById("cameraSelect");
+
+
+// ---------- CAMERA CONTROL ----------
+
+async function stopStream() {
+  if (!stream) return;
+  stream.getTracks().forEach(t => t.stop());
+  stream = null;
+}
+
+async function startCamera(deviceId) {
+
+  await stopStream();
+
+  const constraints = {
+    video: deviceId
+      ? {
+          deviceId: { exact: deviceId },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      : {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+  };
+
+  try {
+
+    stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream;
+
+    const track = stream.getVideoTracks()[0];
+    const settings = track.getSettings();
+
+    currentDeviceId = settings.deviceId || deviceId || null;
+
+  } catch (err) {
+
+    console.error(err);
+    alert("Camera access denied or not available");
+
+  }
+
+}
+
+
+// ---------- CAMERA LIST ----------
+
+async function populateCameras() {
+
+  if (!stream) await startCamera();
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const cams = devices.filter(d => d.kind === "videoinput");
+
+  cameraSelect.innerHTML = "";
+
+  cams.forEach((cam, i) => {
+
+    const opt = document.createElement("option");
+
+    opt.value = cam.deviceId;
+    opt.textContent = cam.label || `Camera ${i + 1}`;
+
+    cameraSelect.appendChild(opt);
+
+  });
+
+  if (currentDeviceId) cameraSelect.value = currentDeviceId;
+
+  cameraSelect.onchange = async () => {
+    await startCamera(cameraSelect.value);
+  };
+
+}
+
+
+// ---------- SWITCH CAMERA ----------
+
+async function switchCamera() {
+
+  const options = Array.from(cameraSelect.options);
+
+  if (options.length < 2) return;
+
+  const idx = options.findIndex(o => o.value === cameraSelect.value);
+  const nextIdx = (idx + 1) % options.length;
+
+  cameraSelect.value = options[nextIdx].value;
+
+  await startCamera(cameraSelect.value);
+
+}
+
+
+// ---------- TAKE PHOTO ----------
+
+function takePhoto(){
+
+  const canvas=document.getElementById("canvas");
+  const context=canvas.getContext("2d");
+
+  canvas.width=video.videoWidth;
+  canvas.height=video.videoHeight;
+
+  context.drawImage(video,0,0);
+
+  const image=canvas.toDataURL("image/png");
+
+  const preview=document.getElementById("preview");
+
+  preview.src=image;
+  preview.style.display="block";
+
+  const link=document.getElementById("downloadLink");
+
+  link.href=image;
+  link.download=line + "-" + Date.now() + ".png";
+
+  link.innerText="Download Photo";
+  link.style.display="block";
+
+  video.pause();
+
+}
+
+
+// ---------- RETAKE PHOTO ----------
+
+function retakePhoto(){
+
+  const preview=document.getElementById("preview");
+  preview.style.display="none";
+
+  const link=document.getElementById("downloadLink");
+  link.style.display="none";
+
+  video.play();
+
+}
+
+
+// ---------- QR SCAN ----------
+
+async function startQR(){
+
+  const resultBox=document.getElementById("qrResult");
+  resultBox.innerText = "";
+
+  if (qrScanner) {
+
+    try { await qrScanner.stop(); } catch(e) {}
+
+    qrScanner = null;
+
+    document.getElementById("reader").innerHTML = "";
+
+  }
+
+  qrScanner = new Html5Qrcode("reader");
+
+  const selectedDeviceId = cameraSelect.value || currentDeviceId;
+
+  const cameraConfig = selectedDeviceId
+    ? { deviceId: { exact: selectedDeviceId } }
+    : { facingMode: "environment" };
+
+  qrScanner.start(
+    cameraConfig,
+    { fps: 10, qrbox: 250 },
+    async (qrCodeMessage) => {
+
+      resultBox.innerText="QR Code: " + qrCodeMessage;
+
+      try { await qrScanner.stop(); } catch(e) {}
+
+      qrScanner = null;
+
+    },
+    (_errorMessage) => {}
+  );
+
+}
+
+
+// ---------- INIT ----------
+
+(async function init(){
+
+  await startCamera();
+
+  await populateCameras();
+
+  navigator.mediaDevices.addEventListener?.("devicechange", populateCameras);
+
+})();
+
+</script>
 
 </body>
 </html>
