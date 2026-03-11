@@ -34,14 +34,21 @@ img{
   margin-top:20px;
 }
 
-button, select{
+button, select, input{
   margin-top:20px;
   padding:15px 25px;
   font-size:18px;
   margin-right:10px;
 }
 
-#qrResult{
+input{
+  width:80%;
+  max-width:600px;
+  box-sizing:border-box;
+}
+
+#qrResult,
+#scanResult{
   margin-top:20px;
   font-size:20px;
   color:#4CAF50;
@@ -70,6 +77,18 @@ button, select{
 <button onclick="takePhoto()">Take Photo</button>
 <button onclick="retakePhoto()">Retake Photo</button>
 <button onclick="startQR()">Scan QR</button>
+
+<br><br>
+
+<input
+  type="text"
+  id="manualScanInput"
+  placeholder="Scan or type code here and press Enter"
+  autocomplete="off"
+  autofocus
+>
+
+<div id="scanResult"></div>
 
 <br><br>
 
@@ -112,6 +131,24 @@ let qrScanner = null;
 
 const video = document.getElementById("video");
 const cameraSelect = document.getElementById("cameraSelect");
+const manualScanInput = document.getElementById("manualScanInput");
+const scanResult = document.getElementById("scanResult");
+
+
+// ---------- MANUAL BARCODE SCAN INPUT ----------
+
+manualScanInput.addEventListener("keydown", function(event){
+  if(event.key === "Enter"){
+    event.preventDefault();
+
+    const scannedCode = manualScanInput.value.trim();
+
+    if(scannedCode){
+      scanResult.innerText = "The code is: " + scannedCode;
+      manualScanInput.value = "";
+    }
+  }
+});
 
 
 // ---------- CAMERA CONTROL ----------
@@ -286,7 +323,7 @@ async function startQR(){
     { fps: 10, qrbox: 250 },
     async (qrCodeMessage) => {
 
-      resultBox.innerText="QR Code: " + qrCodeMessage;
+      resultBox.innerText = "QR Code: " + qrCodeMessage;
 
       try { await qrScanner.stop(); } catch(e) {}
 
@@ -308,6 +345,8 @@ async function startQR(){
   await populateCameras();
 
   navigator.mediaDevices.addEventListener?.("devicechange", populateCameras);
+
+  manualScanInput.focus();
 
 })();
 
