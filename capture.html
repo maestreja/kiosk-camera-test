@@ -32,7 +32,7 @@ video{
 
 #reader{
   width:50%;
-  max-width:360px;
+  height:180px;
   margin:auto;
   margin-top:20px;
   display:none;
@@ -324,7 +324,7 @@ const cameraConfig=selectedDeviceId
 
 qrScanner.start(
 cameraConfig,
-{fps:10,qrbox:200},
+{fps:10,qrbox:150},
 async(qrCodeMessage)=>{
 
 resultBox.innerText="QR Code: "+qrCodeMessage;
