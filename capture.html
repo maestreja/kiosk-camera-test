@@ -5,6 +5,7 @@
 <title>Production Line Capture</title>
 
 <style>
+
 body{
   font-family:Arial;
   text-align:center;
@@ -19,17 +20,19 @@ video{
   border-radius:8px;
 }
 
-img{
-  width:80%;
-  max-width:600px;
+#preview{
+  width:180px;
   border:3px solid #4CAF50;
   border-radius:8px;
   margin-top:20px;
 }
 
-video{
+#reader{
   width:50%;
   max-width:360px;
+  margin:auto;
+  margin-top:20px;
+  display:none;
 }
 
 button, select, input{
@@ -51,6 +54,7 @@ input{
   font-size:20px;
   color:#4CAF50;
 }
+
 </style>
 </head>
 
@@ -63,6 +67,8 @@ input{
 <br>
 
 <video id="video" autoplay playsinline></video>
+
+<div id="reader"></div>
 
 <br>
 
@@ -79,16 +85,16 @@ input{
 <br><br>
 
 <input
-  type="text"
-  id="manualScanInput"
-  placeholder="Scan or type code here and press Enter"
-  autocomplete="off"
-  autofocus
+type="text"
+id="manualScanInput"
+placeholder="Scan or type code here and press Enter"
+autocomplete="off"
+autofocus
 >
 
 <div id="scanResult"></div>
 
-<br><br>
+<br>
 
 <img id="preview" style="display:none">
 
@@ -97,7 +103,6 @@ input{
 <a id="downloadLink" style="display:none">Download Photo</a>
 
 <div id="qrResult"></div>
-<div id="reader"></div>
 
 <canvas id="canvas" style="display:none"></canvas>
 
@@ -105,247 +110,246 @@ input{
 
 <script>
 
-// ---------- GET PRODUCTION LINE FROM URL ----------
-
 const params = new URLSearchParams(window.location.search);
 const line = params.get("line") || "Unknown Line";
 
 document.getElementById("lineTitle").innerText =
 "Production Line: " + line;
 
-
-// ---------- BACK BUTTON ----------
-
 function goBack(){
   window.location.href = "index.html";
 }
 
-
-// ---------- CAMERA VARIABLES ----------
-
 let stream;
-let currentDeviceId = null;
-let qrScanner = null;
+let currentDeviceId=null;
+let qrScanner=null;
 
-const video = document.getElementById("video");
-const cameraSelect = document.getElementById("cameraSelect");
-const manualScanInput = document.getElementById("manualScanInput");
-const scanResult = document.getElementById("scanResult");
+const video=document.getElementById("video");
+const reader=document.getElementById("reader");
+const cameraSelect=document.getElementById("cameraSelect");
 
+const manualScanInput=document.getElementById("manualScanInput");
+const scanResult=document.getElementById("scanResult");
 
-// ---------- MANUAL BARCODE SCAN INPUT ----------
+manualScanInput.addEventListener("keydown",function(event){
 
-manualScanInput.addEventListener("keydown", function(event){
-  if(event.key === "Enter"){
-    event.preventDefault();
+if(event.key==="Enter"){
 
-    const scannedCode = manualScanInput.value.trim();
+event.preventDefault();
 
-    if(scannedCode){
-      scanResult.innerText = "The code is: " + scannedCode;
-      manualScanInput.value = "";
-    }
-  }
+const scannedCode=manualScanInput.value.trim();
+
+if(scannedCode){
+
+scanResult.innerText="The code is: "+scannedCode;
+
+manualScanInput.value="";
+
+}
+
+}
+
 });
 
+async function stopStream(){
 
-// ---------- CAMERA CONTROL ----------
+if(!stream) return;
 
-async function stopStream() {
-  if (!stream) return;
-  stream.getTracks().forEach(t => t.stop());
-  stream = null;
-}
+stream.getTracks().forEach(t=>t.stop());
 
-async function startCamera(deviceId) {
-
-  await stopStream();
-
-  const constraints = {
-    video: deviceId
-      ? {
-          deviceId: { exact: deviceId },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      : {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-  };
-
-  try {
-
-    stream = await navigator.mediaDevices.getUserMedia(constraints);
-    video.srcObject = stream;
-
-    const track = stream.getVideoTracks()[0];
-    const settings = track.getSettings();
-
-    currentDeviceId = settings.deviceId || deviceId || null;
-
-  } catch (err) {
-
-    console.error(err);
-    alert("Camera access denied or not available");
-
-  }
+stream=null;
 
 }
 
+async function startCamera(deviceId){
 
-// ---------- CAMERA LIST ----------
+await stopStream();
 
-async function populateCameras() {
+reader.style.display="none";
+video.style.display="block";
 
-  if (!stream) await startCamera();
+const constraints={
+video:deviceId
+?{
+deviceId:{exact:deviceId},
+width:{ideal:1920},
+height:{ideal:1080}
+}
+:{
+facingMode:{ideal:"environment"},
+width:{ideal:1920},
+height:{ideal:1080}
+}
+};
 
-  const devices = await navigator.mediaDevices.enumerateDevices();
-  const cams = devices.filter(d => d.kind === "videoinput");
+try{
 
-  cameraSelect.innerHTML = "";
+stream=await navigator.mediaDevices.getUserMedia(constraints);
 
-  cams.forEach((cam, i) => {
+video.srcObject=stream;
 
-    const opt = document.createElement("option");
+const track=stream.getVideoTracks()[0];
 
-    opt.value = cam.deviceId;
-    opt.textContent = cam.label || `Camera ${i + 1}`;
+const settings=track.getSettings();
 
-    cameraSelect.appendChild(opt);
+currentDeviceId=settings.deviceId||deviceId||null;
 
-  });
+}catch(err){
 
-  if (currentDeviceId) cameraSelect.value = currentDeviceId;
-
-  cameraSelect.onchange = async () => {
-    await startCamera(cameraSelect.value);
-  };
+alert("Camera access denied or not available");
 
 }
 
+}
 
-// ---------- SWITCH CAMERA ----------
+async function populateCameras(){
 
-async function switchCamera() {
+if(!stream) await startCamera();
 
-  const options = Array.from(cameraSelect.options);
+const devices=await navigator.mediaDevices.enumerateDevices();
 
-  if (options.length < 2) return;
+const cams=devices.filter(d=>d.kind==="videoinput");
 
-  const idx = options.findIndex(o => o.value === cameraSelect.value);
-  const nextIdx = (idx + 1) % options.length;
+cameraSelect.innerHTML="";
 
-  cameraSelect.value = options[nextIdx].value;
+cams.forEach((cam,i)=>{
 
-  await startCamera(cameraSelect.value);
+const opt=document.createElement("option");
+
+opt.value=cam.deviceId;
+
+opt.textContent=cam.label||`Camera ${i+1}`;
+
+cameraSelect.appendChild(opt);
+
+});
+
+if(currentDeviceId) cameraSelect.value=currentDeviceId;
+
+cameraSelect.onchange=async()=>{
+
+await startCamera(cameraSelect.value);
+
+};
 
 }
 
+async function switchCamera(){
 
-// ---------- TAKE PHOTO ----------
+const options=Array.from(cameraSelect.options);
+
+if(options.length<2) return;
+
+const idx=options.findIndex(o=>o.value===cameraSelect.value);
+
+const nextIdx=(idx+1)%options.length;
+
+cameraSelect.value=options[nextIdx].value;
+
+await startCamera(cameraSelect.value);
+
+}
 
 function takePhoto(){
 
-  const canvas=document.getElementById("canvas");
-  const context=canvas.getContext("2d");
+const canvas=document.getElementById("canvas");
 
-  canvas.width=video.videoWidth;
-  canvas.height=video.videoHeight;
+const context=canvas.getContext("2d");
 
-  context.drawImage(video,0,0);
+canvas.width=video.videoWidth;
 
-  const image=canvas.toDataURL("image/png");
+canvas.height=video.videoHeight;
 
-  const preview=document.getElementById("preview");
+context.drawImage(video,0,0);
 
-  preview.src=image;
-  preview.style.display="block";
+const image=canvas.toDataURL("image/png");
 
-  const link=document.getElementById("downloadLink");
+const preview=document.getElementById("preview");
 
-  link.href=image;
-  link.download=line + "-" + Date.now() + ".png";
+preview.src=image;
 
-  link.innerText="Download Photo";
-  link.style.display="block";
+preview.style.display="block";
 
-  video.pause();
+const link=document.getElementById("downloadLink");
+
+link.href=image;
+
+link.download=line+"-"+Date.now()+".png";
+
+link.innerText="Download Photo";
+
+link.style.display="block";
+
+video.pause();
 
 }
-
-
-// ---------- RETAKE PHOTO ----------
 
 function retakePhoto(){
 
-  const preview=document.getElementById("preview");
-  preview.style.display="none";
+const preview=document.getElementById("preview");
 
-  const link=document.getElementById("downloadLink");
-  link.style.display="none";
+preview.style.display="none";
 
-  video.play();
+const link=document.getElementById("downloadLink");
+
+link.style.display="none";
+
+video.play();
 
 }
-
-
-// ---------- QR SCAN ----------
 
 async function startQR(){
 
-  const resultBox=document.getElementById("qrResult");
-  resultBox.innerText = "";
+const resultBox=document.getElementById("qrResult");
 
-  // stop normal camera first
-  await stopStream();
+resultBox.innerText="";
 
-  if (qrScanner) {
-    try { await qrScanner.stop(); } catch(e) {}
-    qrScanner = null;
-  }
+await stopStream();
 
-  document.getElementById("reader").innerHTML = "";
+video.style.display="none";
 
-  qrScanner = new Html5Qrcode("reader");
+reader.style.display="block";
 
-  const selectedDeviceId = cameraSelect.value || currentDeviceId;
+reader.innerHTML="";
 
-  const cameraConfig = selectedDeviceId
-    ? { deviceId: { exact: selectedDeviceId } }
-    : { facingMode: "environment" };
+qrScanner=new Html5Qrcode("reader");
 
-  qrScanner.start(
-    cameraConfig,
-    { fps: 10, qrbox: 250 },
-    async (qrCodeMessage) => {
+const selectedDeviceId=cameraSelect.value||currentDeviceId;
 
-      resultBox.innerText = "QR Code: " + qrCodeMessage;
+const cameraConfig=selectedDeviceId
+?{deviceId:{exact:selectedDeviceId}}
+:{facingMode:"environment"};
 
-      await qrScanner.stop();
-      qrScanner = null;
+qrScanner.start(
+cameraConfig,
+{fps:10,qrbox:200},
+async(qrCodeMessage)=>{
 
-      // restart normal camera after scan
-      await startCamera(cameraSelect.value);
+resultBox.innerText="QR Code: "+qrCodeMessage;
 
-    },
-    (_errorMessage) => {}
-  );
+await qrScanner.stop();
+
+qrScanner=null;
+
+reader.style.display="none";
+
+await startCamera(cameraSelect.value);
+
+},
+(_errorMessage)=>{}
+);
 
 }
 
-// ---------- INIT ----------
-
 (async function init(){
 
-  await startCamera();
+await startCamera();
 
-  await populateCameras();
+await populateCameras();
 
-  navigator.mediaDevices.addEventListener?.("devicechange", populateCameras);
+navigator.mediaDevices.addEventListener?.("devicechange",populateCameras);
 
-  manualScanInput.focus();
+manualScanInput.focus();
 
 })();
 
