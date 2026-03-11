@@ -300,15 +300,15 @@ async function startQR(){
   const resultBox=document.getElementById("qrResult");
   resultBox.innerText = "";
 
+  // stop normal camera first
+  await stopStream();
+
   if (qrScanner) {
-
     try { await qrScanner.stop(); } catch(e) {}
-
     qrScanner = null;
-
-    document.getElementById("reader").innerHTML = "";
-
   }
+
+  document.getElementById("reader").innerHTML = "";
 
   qrScanner = new Html5Qrcode("reader");
 
@@ -325,16 +325,17 @@ async function startQR(){
 
       resultBox.innerText = "QR Code: " + qrCodeMessage;
 
-      try { await qrScanner.stop(); } catch(e) {}
-
+      await qrScanner.stop();
       qrScanner = null;
+
+      // restart normal camera after scan
+      await startCamera(cameraSelect.value);
 
     },
     (_errorMessage) => {}
   );
 
 }
-
 
 // ---------- INIT ----------
 
