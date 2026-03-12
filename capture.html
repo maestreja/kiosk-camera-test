@@ -332,7 +332,10 @@ const cameraConfig=selectedDeviceId
 
 qrScanner.start(
 cameraConfig,
-{fps:10,qrbox:150},
+{
+fps:10,
+qrbox:{ width:150, height:150 }
+},
 async(qrCodeMessage)=>{
 
 resultBox.innerText="QR Code: "+qrCodeMessage;
