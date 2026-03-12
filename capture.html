@@ -2,20 +2,32 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Production Line Capture</title>
 
 <style>
 
 body{
-  font-family:Arial;
+  font-family:Arial,sans-serif;
   text-align:center;
   background:#111;
   color:white;
+  margin:0;
+}
+
+.page{
+  max-width:900px;
+  margin:0 auto;
+  padding:20px 16px 28px;
+}
+
+h2{
+  margin:8px 0 20px;
+  font-size:clamp(1.4rem,2.5vw,2rem);
 }
 
 video{
-  width:180px;
-  max-width:180px;
+  width:min(92vw,640px);
   border:3px solid white;
   border-radius:8px;
   display:block;
@@ -23,21 +35,22 @@ video{
 }
 
 #preview{
-  width:50%;
-  max-width:360px;
+  width:min(92vw,640px);
   border:3px solid #4CAF50;
   border-radius:8px;
-  margin-top:20px;
+  margin:20px auto 0;
 }
 
 #reader{
-  width:180px;
-  height:180px;
+  width:min(92vw,640px);
+  aspect-ratio:1/1;
   margin:auto;
   margin-top:20px;
   display:none;
   border:3px solid #4CAF50;
   border-radius:8px;
+  overflow:hidden;
+  background:#000;
 }
 
 #reader video{
@@ -46,24 +59,87 @@ video{
   object-fit:cover;
 }
 
+#reader__scan_region,
+#reader__scan_region img,
+#reader__scan_region video{
+  width:100% !important;
+  height:100% !important;
+  object-fit:cover;
+}
+
+#reader__dashboard{
+  padding:8px 10px;
+}
+
+#reader__dashboard_section_csr,
+#reader__dashboard_section_swaplink,
+#reader__dashboard_section_fsr{
+  display:none;
+}
+
+.field-row,
+.controls{
+  width:min(92vw,640px);
+  margin:18px auto 0;
+}
+
+.field-row{
+  text-align:left;
+}
+
+.field-row label{
+  display:block;
+  margin-bottom:8px;
+  font-size:1rem;
+}
+
+.controls{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
 button, select, input{
-  margin-top:20px;
-  padding:15px 25px;
-  font-size:18px;
-  margin-right:10px;
+  padding:14px 16px;
+  font-size:clamp(1rem,2.2vw,1.15rem);
+  border-radius:10px;
+  border:1px solid #2f2f2f;
+  box-sizing:border-box;
+}
+
+button{
+  width:100%;
+  margin:0;
+  cursor:pointer;
+}
+
+select,
+input{
+  width:100%;
 }
 
 input{
-  width:80%;
-  max-width:600px;
-  box-sizing:border-box;
+  margin-top:18px;
 }
 
 #qrResult,
 #scanResult{
-  margin-top:20px;
-  font-size:20px;
+  margin-top:16px;
+  font-size:clamp(1rem,2.3vw,1.25rem);
   color:#4CAF50;
+}
+
+#downloadLink{
+  display:inline-block;
+  margin-top:16px;
+  color:#7dd3fc;
+  font-size:1.05rem;
+}
+
+@media (max-width:700px){
+  .controls{
+    grid-template-columns:1fr;
+  }
 }
 
 </style>
@@ -71,29 +147,29 @@ input{
 
 <body>
 
+<main class="page">
+
 <h2 id="lineTitle">Production Line</h2>
 
+<div class="controls">
 <button onclick="goBack()">Back to Lines</button>
-
-<br>
+</div>
 
 <video id="video" autoplay playsinline></video>
 
 <div id="reader"></div>
 
-<br>
-
+<div class="field-row">
 <label for="cameraSelect">Camera:</label>
-<select id="cameraSelect" style="max-width:600px; width:80%;"></select>
+<select id="cameraSelect"></select>
+</div>
 
-<br>
-
+<div class="controls">
 <button onclick="switchCamera()">Switch Camera</button>
 <button onclick="takePhoto()">Take Photo</button>
 <button onclick="retakePhoto()">Retake Photo</button>
 <button onclick="startQR()">Scan QR</button>
-
-<br><br>
+</div>
 
 <input
 type="text"
@@ -104,17 +180,15 @@ autocomplete="off"
 
 <div id="scanResult"></div>
 
-<br>
-
 <img id="preview" style="display:none">
-
-<br>
 
 <a id="downloadLink" style="display:none">Download Photo</a>
 
 <div id="qrResult"></div>
 
 <canvas id="canvas" style="display:none"></canvas>
+
+</main>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
@@ -334,7 +408,10 @@ qrScanner.start(
 cameraConfig,
 {
 fps:10,
-qrbox:{ width:150, height:150 }
+qrbox:()=>{
+const size=Math.max(180,Math.floor(Math.min(reader.clientWidth,reader.clientHeight)*0.7));
+return { width:size, height:size };
+}
 },
 async(qrCodeMessage)=>{
 
