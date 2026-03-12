@@ -21,13 +21,21 @@ body{
   padding:20px 16px 28px;
 }
 
+.stage,
+.field-row,
+.top-controls,
+.action-grid,
+#manualScanInput{
+  width:min(92vw,640px);
+}
+
 h2{
   margin:8px 0 20px;
   font-size:clamp(1.4rem,2.5vw,2rem);
 }
 
 video{
-  width:min(92vw,640px);
+  width:100%;
   border:3px solid white;
   border-radius:8px;
   display:block;
@@ -35,14 +43,14 @@ video{
 }
 
 #preview{
-  width:min(92vw,640px);
+  width:100%;
   border:3px solid #4CAF50;
   border-radius:8px;
   margin:20px auto 0;
 }
 
 #reader{
-  width:min(92vw,640px);
+  width:100%;
   aspect-ratio:1/1;
   margin:auto;
   margin-top:20px;
@@ -51,6 +59,7 @@ video{
   border-radius:8px;
   overflow:hidden;
   background:#000;
+  position:relative;
 }
 
 #reader video{
@@ -77,13 +86,20 @@ video{
   display:none;
 }
 
-.field-row,
 .controls{
-  width:min(92vw,640px);
   margin:18px auto 0;
 }
 
+.stage{
+  margin:0 auto;
+}
+
+.top-controls{
+  margin:0 auto;
+}
+
 .field-row{
+  margin:18px auto 0;
   text-align:left;
 }
 
@@ -97,6 +113,10 @@ video{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
   gap:10px;
+}
+
+.action-grid{
+  margin:18px auto 0;
 }
 
 button, select, input{
@@ -122,6 +142,60 @@ input{
   margin-top:18px;
 }
 
+#scanGuideText{
+  display:none;
+  margin:10px auto 0;
+  color:#a7f3d0;
+  font-size:clamp(0.95rem,2vw,1.1rem);
+}
+
+#reader.scanning::before{
+  content:"";
+  position:absolute;
+  inset:14px;
+  border:3px dashed rgba(76,175,80,0.95);
+  border-radius:12px;
+  z-index:3;
+  pointer-events:none;
+}
+
+#reader.scanning::after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:10px;
+  z-index:4;
+  pointer-events:none;
+  background:
+    linear-gradient(#4CAF50,#4CAF50) top left/42px 4px no-repeat,
+    linear-gradient(#4CAF50,#4CAF50) top left/4px 42px no-repeat,
+    linear-gradient(#4CAF50,#4CAF50) top right/42px 4px no-repeat,
+    linear-gradient(#4CAF50,#4CAF50) top right/4px 42px no-repeat,
+    linear-gradient(#4CAF50,#4CAF50) bottom left/42px 4px no-repeat,
+    linear-gradient(#4CAF50,#4CAF50) bottom left/4px 42px no-repeat,
+    linear-gradient(#4CAF50,#4CAF50) bottom right/42px 4px no-repeat,
+    linear-gradient(#4CAF50,#4CAF50) bottom right/4px 42px no-repeat;
+}
+
+#reader.scan-success{
+  animation:readerSuccessFlash 420ms ease-out;
+}
+
+@keyframes readerSuccessFlash{
+  0%{
+    box-shadow:0 0 0 0 rgba(34,197,94,0.85);
+    filter:brightness(1);
+  }
+  50%{
+    box-shadow:0 0 0 16px rgba(34,197,94,0.12);
+    filter:brightness(1.16);
+  }
+  100%{
+    box-shadow:0 0 0 0 rgba(34,197,94,0);
+    filter:brightness(1);
+  }
+}
+
 #qrResult,
 #scanResult{
   margin-top:16px;
@@ -142,6 +216,43 @@ input{
   }
 }
 
+@media (min-width:900px) and (orientation:landscape){
+  .page{
+    max-width:1200px;
+    padding:24px 24px 34px;
+  }
+
+  .stage,
+  .field-row,
+  .top-controls,
+  .action-grid,
+  #manualScanInput{
+    width:min(72vw,920px);
+  }
+
+  video,
+  #preview{
+    border-width:4px;
+    border-radius:12px;
+  }
+
+  #reader{
+    border-width:4px;
+    border-radius:12px;
+    max-height:70vh;
+  }
+
+  .action-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+  }
+
+  .action-grid button{
+    min-height:64px;
+    font-size:1.2rem;
+  }
+}
+
 </style>
 </head>
 
@@ -151,20 +262,24 @@ input{
 
 <h2 id="lineTitle">Production Line</h2>
 
-<div class="controls">
+<div class="controls top-controls">
 <button onclick="goBack()">Back to Lines</button>
 </div>
 
+<div class="stage">
 <video id="video" autoplay playsinline></video>
 
 <div id="reader"></div>
+
+<div id="scanGuideText">Align the QR code inside the frame corners</div>
+</div>
 
 <div class="field-row">
 <label for="cameraSelect">Camera:</label>
 <select id="cameraSelect"></select>
 </div>
 
-<div class="controls">
+<div class="controls action-grid">
 <button onclick="switchCamera()">Switch Camera</button>
 <button onclick="takePhoto()">Take Photo</button>
 <button onclick="retakePhoto()">Retake Photo</button>
@@ -207,6 +322,7 @@ function goBack(){
 let stream;
 let currentDeviceId=null;
 let qrScanner=null;
+let isHandlingQrResult=false;
 
 const video=document.getElementById("video");
 const reader=document.getElementById("reader");
@@ -214,6 +330,7 @@ const cameraSelect=document.getElementById("cameraSelect");
 
 const manualScanInput=document.getElementById("manualScanInput");
 const scanResult=document.getElementById("scanResult");
+const scanGuideText=document.getElementById("scanGuideText");
 
 manualScanInput.addEventListener("keydown",function(event){
 
@@ -250,6 +367,8 @@ async function startCamera(deviceId){
 await stopStream();
 
 reader.style.display="none";
+reader.classList.remove("scanning","scan-success");
+scanGuideText.style.display="none";
 video.style.display="block";
 
 const constraints={
@@ -393,10 +512,13 @@ await stopStream();
 video.style.display="none";
 
 reader.style.display="block";
+reader.classList.add("scanning");
+scanGuideText.style.display="block";
 
 reader.innerHTML="";
 
 qrScanner=new Html5Qrcode("reader");
+isHandlingQrResult=false;
 
 const selectedDeviceId=cameraSelect.value||currentDeviceId;
 
@@ -415,7 +537,16 @@ return { width:size, height:size };
 },
 async(qrCodeMessage)=>{
 
+if(isHandlingQrResult) return;
+isHandlingQrResult=true;
+
 resultBox.innerText="QR Code: "+qrCodeMessage;
+
+reader.classList.remove("scanning");
+reader.classList.add("scan-success");
+scanGuideText.style.display="none";
+
+await new Promise(resolve=>setTimeout(resolve,280));
 
 await qrScanner.stop();
 
